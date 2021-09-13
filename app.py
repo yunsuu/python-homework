@@ -11,8 +11,11 @@ apiUrl = 'http://python.recruit.herrencorp.com/api/v1/mail'
 apiUrl2 = 'http://python.recruit.herrencorp.com/api/v2/mail'
 
 
-headers = {'Authorization': 'herren-recruit-python', 'Content-Type': 'application/x-www-form-urlencoded'}
-headers2 = {'Authorization': 'herren-recruit-python', 'Content-Type': 'application/json'}
+headers = {'Authorization': 'herren-recruit-python',
+           'Content-Type': 'application/x-www-form-urlencoded'}
+headers2 = {'Authorization': 'herren-recruit-python',
+            'Content-Type': 'application/json'}
+
 
 def sendMail(headers, mail, apiUrl):
     while True:
@@ -23,7 +26,7 @@ def sendMail(headers, mail, apiUrl):
             return True
 
 
-# 유저목록 조회 
+# 유저목록 조회
 @app.route("/user-list")
 def getUserListRouter():
     conn = sqlite3.connect('mydb.db')
@@ -42,9 +45,11 @@ def getUserListRouter():
     }
 
 # 유저목록 추가 (미완성)
+
+
 @app.route("/add-user", methods=['POST'])
 def postAddUserRouter():
-    try: 
+    try:
         userName = request.form['name']
         userEmail = request.form['email']
         conn = sqlite3.connect('mydb.db')
@@ -64,15 +69,17 @@ def postAddUserRouter():
         if errorMssage == 'UNIQUE constraint failed: users.email':
             return {
                 'status': 'fail',
-                'msg' : "sqlite error : 등록된 email이 있습니다. 새로운 이메일로 등록해주세요."
+                'msg': "sqlite error : 등록된 email이 있습니다. 새로운 이메일로 등록해주세요."
             }
         else:
             return {
                 'status': 'fail',
-                'msg' : "sqlite error!!!ß"
-            }            
+                'msg': "sqlite error!!!ß"
+            }
 
 # 유저목록 변경
+
+
 @app.route("/update-user", methods=['PUT'])
 def putUpdateUserRouter():
     userName = request.form['name']
@@ -98,6 +105,8 @@ WHERE name='%s' AND email='%s'""" % (newName, newEmail, userName, userEmail)
         }
 
 # 유저목록 삭제
+
+
 @app.route("/delete-user", methods=['DELETE'])
 def deleteUserRouter():
     userName = request.form['name']
@@ -106,7 +115,8 @@ def deleteUserRouter():
     conn = sqlite3.connect('mydb.db')
     cur = conn.cursor()
 
-    query = "DELETE FROM users WHERE name='%s' AND email='%s'" % (userName, userEmail)
+    query = "DELETE FROM users WHERE name='%s' AND email='%s'" % (
+        userName, userEmail)
     cur.execute(query)
     print(cur.rowcount)
     if cur.rowcount > 0:
@@ -122,19 +132,21 @@ def deleteUserRouter():
         }
 
 # 한개 이메일 보내기
-#post
+# post
+
+
 @app.route("/send-mail", methods=['POST'])
 def postSendMailRouter():
     mailto = request.form['mailto']
     subject = request.form['subject']
     content = request.form['content']
 
-    mail={
-	"mailto": mailto,
-	"subject": subject,
-	"content": content
-}
-    try:    
+    mail = {
+        "mailto": mailto,
+        "subject": subject,
+        "content": content
+    }
+    try:
         if 'gamil.com' in mail['mailto'] or 'naver.com' in mail['mailto']:
             response = sendMail(headers2, json.dumps(mail), apiUrl2)
         else:
@@ -154,6 +166,8 @@ def postSendMailRouter():
 
 # 다중 이메일 보내기
 # post
+
+
 @app.route("/send-mails-to-all", methods=['POST'])
 def postSendMailsRouter():
     subject = request.form['subject']
@@ -169,10 +183,10 @@ def postSendMailsRouter():
     for row in rows:
         userEmail = row[2]
         mails.append({
-	"mailto": userEmail,
-	"subject": subject,
-	"content": content
-})
+            "mailto": userEmail,
+            "subject": subject,
+            "content": content
+        })
 
     # response = sendMail(headers=headers, mails=data, apiUrl=apiUrl)
 
@@ -182,10 +196,12 @@ def postSendMailsRouter():
             # process = multiprocessing.Process(target=sendMail, args=(headers, mail, apiUrl))
             # process = multiprocessing.Process(target=sendMail, args=(headers2, json.dumps(mail), apiUrl2))
             if 'gamil.com' in mail['mailto'] or 'naver.com' in mail['mailto']:
-                process = multiprocessing.Process(target=sendMail, args=(headers2, json.dumps(mail), apiUrl2))
+                process = multiprocessing.Process(
+                    target=sendMail, args=(headers2, json.dumps(mail), apiUrl2))
                 print(' 구글이나 네이버!')
             else:
-                process = multiprocessing.Process(target=sendMail, args=(headers, mail, apiUrl))
+                process = multiprocessing.Process(
+                    target=sendMail, args=(headers, mail, apiUrl))
             processes.append(process)
             process.start()
 
@@ -193,12 +209,13 @@ def postSendMailsRouter():
             process.join()
 
         return {
-                'status': 'success',
-            }
+            'status': 'success',
+        }
     except:
         return {
-                'status': 'fail',
-            }
+            'status': 'fail',
+        }
+
 
 @app.route("/")
 def getRootRouter():
