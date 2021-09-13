@@ -6,9 +6,17 @@ import sqlite3
 
 app = Flask(__name__)
 
-def sendMail(headers, mails, apiUrl):
+
+apiUrl = 'http://python.recruit.herrencorp.com/api/v1/mail'
+apiUrl2 = 'http://python.recruit.herrencorp.com/api/v2/mail'
+
+
+headers = {'Authorization': 'herren-recruit-python', 'Content-Type': 'application/x-www-form-urlencoded'}
+headers2 = {'Authorization': 'herren-recruit-python', 'Content-Type': 'application/json'}
+
+def sendMail(headers, mail, apiUrl):
     while True:
-        response = requests.post(apiUrl, data=mails, headers=headers)
+        response = requests.post(apiUrl, data=mail, headers=headers)
         result = json.loads(response.text)
         print(result['status'])
         if result['status'] == 'success':
@@ -16,7 +24,7 @@ def sendMail(headers, mails, apiUrl):
 
 
 # 유저목록 조회 
-@app.route("/userlist")
+@app.route("/user-list")
 def getUserListRouter():
     conn = sqlite3.connect('mydb.db')
     cur = conn.cursor()
@@ -34,24 +42,38 @@ def getUserListRouter():
     }
 
 # 유저목록 추가 (미완성)
-@app.route("/adduser", methods=['POST'])
+@app.route("/add-user", methods=['POST'])
 def postAddUserRouter():
-    userName = request.form['name']
-    userEmail = request.form['email']
-
-    conn = sqlite3.connect('mydb.db')
-    cur = conn.cursor()
-    query = """INSERT INTO users(name, email) VALUES ('%s', '%s') 
-    WHERE NOT EXISTS (SELECT * FROM users WHERE email='%s')""" % (userName, userEmail, userEmail)
-    cur.execute(query)
-    conn.commit()
-    conn.close()
-    return {
-        'status': 'success',
-    }
+    try: 
+        userName = request.form['name']
+        userEmail = request.form['email']
+        conn = sqlite3.connect('mydb.db')
+        cur = conn.cursor()
+        query = """INSERT INTO users(name, email) VALUES ('%s', '%s') 
+""" % (userName, userEmail)
+        cur.execute(query)
+        conn.commit()
+        conn.close()
+        return {
+            'status': 'success',
+        }
+    except sqlite3.Error as error:
+        errorMssage = ' '.join(error.args)
+        print(errorMssage)
+        print('SQLite error: %s' % (errorMssage))
+        if errorMssage == 'UNIQUE constraint failed: users.email':
+            return {
+                'status': 'fail',
+                'msg' : "sqlite error : 등록된 email이 있습니다. 새로운 이메일로 등록해주세요."
+            }
+        else:
+            return {
+                'status': 'fail',
+                'msg' : "sqlite error!!!ß"
+            }            
 
 # 유저목록 변경
-@app.route("/updateuser", methods=['PUT'])
+@app.route("/update-user", methods=['PUT'])
 def putUpdateUserRouter():
     userName = request.form['name']
     userEmail = request.form['email']
@@ -76,7 +98,7 @@ WHERE name='%s' AND email='%s'""" % (newName, newEmail, userName, userEmail)
         }
 
 # 유저목록 삭제
-@app.route("/deleteuser", methods=['DELETE'])
+@app.route("/delete-user", methods=['DELETE'])
 def deleteUserRouter():
     userName = request.form['name']
     userEmail = request.form['email']
@@ -101,65 +123,83 @@ def deleteUserRouter():
 
 # 한개 이메일 보내기
 #post
-@app.route("/sendmail")
-def sendMailApi():
+@app.route("/send-mail", methods=['POST'])
+def postSendMailRouter():
+    mailto = request.form['mailto']
+    subject = request.form['subject']
+    content = request.form['content']
 
-    apiUrl = 'http://python.recruit.herrencorp.com/api/v1/mail'
-
-    headers = {'Authorization': 'herren-recruit-python', 'Content-Type': 'application/x-www-form-urlencoded'}
     mail={
-	"mailto": "mail recever1",
-	"subject": "mail title",
-	"content": "massage"
+	"mailto": mailto,
+	"subject": subject,
+	"content": content
 }
-    response = sendMail(headers=headers, mails=mail, apiUrl=apiUrl)
-
-    return "<p>Hello, World!</p>"
+    try:    
+        if 'gamil.com' in mail['mailto'] or 'naver.com' in mail['mailto']:
+            response = sendMail(headers2, json.dumps(mail), apiUrl2)
+        else:
+            response = sendMail(headers, mail, apiUrl)
+        if response == True:
+            return {
+                'status': 'success',
+            }
+        else:
+            return {
+                'status': 'fail',
+            }
+    except:
+        return {
+            'status': 'fail',
+        }
 
 # 다중 이메일 보내기
 # post
-@app.route("/sendmails")
-def sendMailsApi():
-    # conn = sqlite3.connect('mydb.db')
-    # cur = conn.cursor()
-    # cur.execute("SELECT * FROM users")
-    # rows = cur.fetchall()
+@app.route("/send-mails-to-all", methods=['POST'])
+def postSendMailsRouter():
+    subject = request.form['subject']
+    content = request.form['content']
 
-    apiUrl = 'http://python.recruit.herrencorp.com/api/v1/mail'
-
-    headers = {'Authorization': 'herren-recruit-python', 'Content-Type': 'application/x-www-form-urlencoded'}
-    mails=[{
-	"mailto": "mail recever1",
-	"subject": "mail title",
-	"content": "massage"
-}, {
-	"mailto": "mail recever2",
-	"subject": "mail title",
-	"content": "massage"
-}, {
-	"mailto": "mail recever3",
-	"subject": "mail title",
-	"content": "massage"
-}]
-    # response = sendMail(headers=headers, mails=data, apiUrl=apiUrl)
-
-    processes = []
-    
-    for mail in mails:
-        process = multiprocessing.Process(target=sendMail, args=(headers, mail, apiUrl))
-        processes.append(process)
-        process.start()
-
-    for process in processes:
-        process.join()
-
-    return "<p>Hello, World!</p>"
-
-@app.route("/")
-def hello_world():
     conn = sqlite3.connect('mydb.db')
     cur = conn.cursor()
     cur.execute("SELECT * FROM users")
     rows = cur.fetchall()
     print(rows)
-    return "<p>Hello, World!</p>"
+    conn.close()
+    mails = []
+    for row in rows:
+        userEmail = row[2]
+        mails.append({
+	"mailto": userEmail,
+	"subject": subject,
+	"content": content
+})
+
+    # response = sendMail(headers=headers, mails=data, apiUrl=apiUrl)
+
+    try:
+        processes = []
+        for mail in mails:
+            # process = multiprocessing.Process(target=sendMail, args=(headers, mail, apiUrl))
+            # process = multiprocessing.Process(target=sendMail, args=(headers2, json.dumps(mail), apiUrl2))
+            if 'gamil.com' in mail['mailto'] or 'naver.com' in mail['mailto']:
+                process = multiprocessing.Process(target=sendMail, args=(headers2, json.dumps(mail), apiUrl2))
+                print(' 구글이나 네이버!')
+            else:
+                process = multiprocessing.Process(target=sendMail, args=(headers, mail, apiUrl))
+            processes.append(process)
+            process.start()
+
+        for process in processes:
+            process.join()
+
+        return {
+                'status': 'success',
+            }
+    except:
+        return {
+                'status': 'fail',
+            }
+
+@app.route("/")
+def getRootRouter():
+    return "<p>서버가 정상적으로 켜졌습니다!</p>"
