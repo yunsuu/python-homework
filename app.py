@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 import requests
 import json
 import multiprocessing
@@ -15,7 +15,92 @@ def sendMail(headers, mails, apiUrl):
             return True
 
 
+# 유저목록 조회 
+@app.route("/userlist")
+def getUserListRouter():
+    conn = sqlite3.connect('mydb.db')
+    cur = conn.cursor()
+    query = "SELECT * FROM users"
+    cur.execute(query)
+    rows = cur.fetchall()
+    conn.close()
+    result = []
+    print(rows)
+    for row in rows:
+        result.append({'name': row[1], 'email': row[2]})
+    return {
+        'status': 'success',
+        'result': result,
+    }
+
+# 유저목록 추가 (미완성)
+@app.route("/adduser", methods=['POST'])
+def postAddUserRouter():
+    userName = request.form['name']
+    userEmail = request.form['email']
+
+    conn = sqlite3.connect('mydb.db')
+    cur = conn.cursor()
+    query = """INSERT INTO users(name, email) VALUES ('%s', '%s') 
+    WHERE NOT EXISTS (SELECT * FROM users WHERE email='%s')""" % (userName, userEmail, userEmail)
+    cur.execute(query)
+    conn.commit()
+    conn.close()
+    return {
+        'status': 'success',
+    }
+
+# 유저목록 변경
+@app.route("/updateuser", methods=['PUT'])
+def putUpdateUserRouter():
+    userName = request.form['name']
+    userEmail = request.form['email']
+    newName = request.form['newName']
+    newEmail = request.form['newEmail']
+
+    conn = sqlite3.connect('mydb.db')
+    cur = conn.cursor()
+    query = """UPDATE users SET name='%s', email='%s'
+WHERE name='%s' AND email='%s'""" % (newName, newEmail, userName, userEmail)
+    cur.execute(query)
+    print(cur.rowcount)
+    if cur.rowcount > 0:
+        conn.commit()
+        conn.close()
+        return {
+            'status': 'success',
+        }
+    else:
+        return {
+            'status': 'fail',
+        }
+
+# 유저목록 삭제
+@app.route("/deleteuser", methods=['DELETE'])
+def deleteUserRouter():
+    userName = request.form['name']
+    userEmail = request.form['email']
+
+    conn = sqlite3.connect('mydb.db')
+    cur = conn.cursor()
+
+    query = "DELETE FROM users WHERE name='%s' AND email='%s'" % (userName, userEmail)
+    cur.execute(query)
+    print(cur.rowcount)
+    if cur.rowcount > 0:
+        conn.commit()
+        conn.close()
+        return {
+            'status': 'success',
+        }
+    else:
+        conn.close()
+        return {
+            'status': 'fail',
+        }
+
 # 한개 이메일 보내기
+#post
 @app.route("/sendmail")
 def sendMailApi():
 
@@ -32,6 +117,7 @@ def sendMailApi():
     return "<p>Hello, World!</p>"
 
 # 다중 이메일 보내기
+# post
 @app.route("/sendmails")
 def sendMailsApi():
     # conn = sqlite3.connect('mydb.db')
